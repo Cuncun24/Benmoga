@@ -1,0 +1,11 @@
+[req]
+distinguished_name=req
+[ext]
+basicConstraints=CA:FALSE
+keyUsage=digitalSignature,keyEncipherment
+extendedKeyUsage=serverAuth
+subjectAltName=@alt
+[alt]
+IP.1=192.168.2.120
+IP.2=127.0.0.1
+DNS.1=localhost

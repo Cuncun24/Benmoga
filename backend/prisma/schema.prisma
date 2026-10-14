@@ -1,0 +1,135 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum RolUsuario {
+  ADMINISTRADORA
+  EMPLEADO
+}
+
+enum EstadoInventario {
+  BORRADOR
+  ACTIVO
+  CERRADO
+}
+
+enum EstadoSesionZona {
+  ACTIVA
+  FINALIZADA
+}
+
+model Local {
+  id          Int          @id @default(autoincrement())
+  nombre      String       @unique @db.VarChar(120)
+  activo      Boolean      @default(true)
+  creadoEn    DateTime     @default(now())
+  zonas       Zona[]
+  inventarios Inventario[]
+}
+
+model Usuario {
+  id             Int            @id @default(autoincrement())
+  nombre         String         @db.VarChar(120)
+  correo         String         @unique @db.VarChar(190)
+  passwordHash   String         @db.VarChar(255)
+  rol            RolUsuario     @default(EMPLEADO)
+  activo         Boolean        @default(true)
+  creadoEn       DateTime       @default(now())
+  sesionesZona   SesionZona[]
+  escaneos       Escaneo[]
+  inventariosCreados Inventario[]
+}
+
+model Zona {
+  id             Int            @id @default(autoincrement())
+  localId        Int
+  numero         Int
+  nombre         String?        @db.VarChar(100)
+  activa         Boolean        @default(true)
+  local          Local          @relation(fields: [localId], references: [id], onDelete: Cascade)
+  sesiones       SesionZona[]
+  escaneos       Escaneo[]
+  @@unique([localId, numero])
+}
+
+model Inventario {
+  id             Int                  @id @default(autoincrement())
+  localId        Int
+  nombre         String               @db.VarChar(180)
+  fechaInventario DateTime            @default(now())
+  estado         EstadoInventario     @default(BORRADOR)
+  archivoOrigen  String?              @db.VarChar(255)
+  creadoPorId    Int
+  creadoEn       DateTime             @default(now())
+  local          Local                @relation(fields: [localId], references: [id])
+  productos      InventarioProducto[]
+  escaneos       Escaneo[]
+  creadoPor      Usuario              @relation(fields: [creadoPorId], references: [id])
+  @@index([estado, fechaInventario])
+  @@index([localId, estado])
+}
+
+model Producto {
+  id             Int                  @id @default(autoincrement())
+  codigoBarras   String               @db.VarChar(64)
+  item           String?              @db.VarChar(64)
+  descripcion    String?              @db.VarChar(255)
+  detalle1       String?              @db.VarChar(120)
+  detalle2       String?              @db.VarChar(120)
+  genero         String?              @db.VarChar(100)
+  estilo         String?              @db.VarChar(100)
+  subGrupo       String?              @db.VarChar(100)
+  creadoEn       DateTime             @default(now())
+  inventarios    InventarioProducto[]
+  @@unique([codigoBarras])
+  @@index([descripcion])
+}
+
+model InventarioProducto {
+  id                 Int        @id @default(autoincrement())
+  inventarioId       Int
+  productoId         Int
+  existenciaInicial  Int        @default(0)
+  creadoEn           DateTime   @default(now())
+  inventario         Inventario @relation(fields: [inventarioId], references: [id], onDelete: Cascade)
+  producto           Producto   @relation(fields: [productoId], references: [id])
+  escaneos           Escaneo[]
+  @@unique([inventarioId, productoId])
+  @@index([inventarioId])
+}
+
+model SesionZona {
+  id             Int                @id @default(autoincrement())
+  usuarioId      Int
+  zonaId         Int
+  estado         EstadoSesionZona   @default(ACTIVA)
+  inicio         DateTime           @default(now())
+  fin            DateTime?
+  usuario        Usuario            @relation(fields: [usuarioId], references: [id])
+  zona           Zona               @relation(fields: [zonaId], references: [id])
+  @@index([estado, zonaId])
+  @@index([usuarioId, estado])
+}
+
+model Escaneo {
+  id                    BigInt             @id @default(autoincrement())
+  inventarioId          Int
+  inventarioProductoId  Int
+  usuarioId             Int
+  zonaId                Int
+  codigoLeido           String             @db.VarChar(64)
+  cantidad              Int                @default(1)
+  leidoEn               DateTime           @default(now())
+  inventario            Inventario         @relation(fields: [inventarioId], references: [id])
+  inventarioProducto    InventarioProducto @relation(fields: [inventarioProductoId], references: [id])
+  usuario               Usuario            @relation(fields: [usuarioId], references: [id])
+  zona                  Zona               @relation(fields: [zonaId], references: [id])
+  @@index([inventarioId, zonaId, leidoEn])
+  @@index([inventarioProductoId])
+  @@index([usuarioId, leidoEn])
+}
